@@ -1,0 +1,2 @@
+# domain
+GenJS - Domain entities
