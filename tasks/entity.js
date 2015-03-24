@@ -3,8 +3,8 @@ var
   fs = require('fs'),
   path = require('path'),
   gfile = require('gfilesync'),
+  mkdirp = require('mkdirp'),
   yaml = require('js-yaml'),
-  GenJSHelper = require('../helpers/genjshelper'),
   GenJS = require('genjs');
 
 var Task = (function() {
@@ -14,11 +14,12 @@ var Task = (function() {
     this.doMain(data, callback);
   };
   Task.prototype.loadGenJS = function(data) {
-    this.genJSHelper = new GenJSHelper();
-    this.genJS = this.genJSHelper.loadGenJS(data.Genjsfile);
+    this.genJS = new GenJS(data.Genjsfile);
+    this.genJS.load();
   };
   Task.prototype.writeEntity = function(entity) {
     var modelDir = this.genJS.modelDirs[0];
+    mkdirp.sync(path.join(modelDir,'@domain'));
     gfile.writeYaml(path.join(modelDir,'@domain',entity.id+'.yml'), entity);
   };
   Task.prototype.deleteEntity = function(entity) {
@@ -60,23 +61,35 @@ var Task = (function() {
     inquirer.prompt(questions, function( answers ) {
       if(answers.action == 'new') {
         this.doAddEntity(data, function (entity) {
-          this.doEditEntity(enity, data, function () {
+          if(entity == null) {
             this.doMain(data, callback);
-          }.bind(this));
+          } else {
+            this.doEditEntity(entity, data, function () {
+              this.doMain(data, callback);
+            }.bind(this));
+          }
         }.bind(this));
       }
       if(answers.action == 'modify') {
         this.doSelectEntity(data, function (entity) {
-          this.doEditEntity(entity, data, function () {
+          if(entity == null) {
             this.doMain(data, callback);
-          }.bind(this))
+          } else {
+            this.doEditEntity(entity, data, function () {
+              this.doMain(data, callback);
+            }.bind(this))
+          }
         }.bind(this));
       }
       if(answers.action == 'remove') {
         this.doSelectEntity(data, function (entity) {
-          this.doRemoveEntity(entity, data, function () {
+          if(entity == null) {
             this.doMain(data, callback);
-          }.bind(this))
+          } else {
+            this.doRemoveEntity(entity, data, function () {
+              this.doMain(data, callback);
+            }.bind(this))
+          }
         }.bind(this));
       }
       if(callback) {
@@ -94,13 +107,17 @@ var Task = (function() {
     ];
     inquirer.prompt(questions, function( answers ) {
       console.log(answers.entityName);
-      var entity = {
-        id: answers.entityName,
-        name: answers.entityName
-      };
-      this.writeEntity(entity);
-      this.loadGenJS(data);
-      callback(entity);
+      if(answers.entityName == null || answers.entityName == '') {
+        callback(null);
+      } else {
+        var entity = {
+          id: answers.entityName,
+          name: answers.entityName
+        };
+        this.writeEntity(entity);
+        this.loadGenJS(data);
+        callback(entity);
+      }
     }.bind(this));
   };
   Task.prototype.doSelectEntity = function(data, callback) {
@@ -113,6 +130,11 @@ var Task = (function() {
         checked: false
       });
     }
+    entitiesChoices.push(new inquirer.Separator());
+    entitiesChoices.push({
+      name: 'Exit',
+      value: null
+    });
     var questions = [
       {
         type: 'list',
@@ -126,6 +148,10 @@ var Task = (function() {
     }.bind(this));
   };
   Task.prototype.doRemoveEntity = function(entity, data, callback) {
+    if(entity == null) {
+      callback();
+      return;
+    }
     var questions = [
       {
         type: 'confirm',
@@ -142,6 +168,10 @@ var Task = (function() {
     }.bind(this));
   };
   Task.prototype.doEditEntity = function(entity, data, callback) {
+    if(entity == null) {
+      callback();
+      return;
+    }
     this.loadGenJS(data);
     entity = this.genJS.entities[entity.id];
     var choices = [];
@@ -196,16 +226,24 @@ var Task = (function() {
       }
       if(answers.action == 'editAttribute') {
         this.doSelectAttribute(entity, data, function(attribute) {
-          this.doEditAttribute(attribute, entity, data, function() {
+          if(attribute == null) {
             this.doEditEntity(entity, data, callback);
-          }.bind(this))
+          } else {
+            this.doEditAttribute(attribute, entity, data, function () {
+              this.doEditEntity(entity, data, callback);
+            }.bind(this))
+          }
         }.bind(this));
       }
       if(answers.action == 'removeAttribute') {
         this.doSelectAttribute(entity, data, function(attribute) {
-          this.doRemoveAttribute(attribute, entity, data, function () {
+          if(attribute == null) {
             this.doEditEntity(entity, data, callback);
-          }.bind(this))
+          } else {
+            this.doRemoveAttribute(attribute, entity, data, function () {
+              this.doEditEntity(entity, data, callback);
+            }.bind(this))
+          }
         }.bind(this));
       }
       if(answers.action == 'addRelationship') {
@@ -215,16 +253,24 @@ var Task = (function() {
       }
       if(answers.action == 'editRelationship') {
         this.doSelectRelationship(entity, data, function(link) {
-          this.doEditRelationship(link, entity, data, function () {
+          if(link == null) {
             this.doEditEntity(entity, data, callback);
-          }.bind(this))
+          } else {
+            this.doEditRelationship(link, entity, data, function () {
+              this.doEditEntity(entity, data, callback);
+            }.bind(this))
+          }
         }.bind(this));
       }
       if(answers.action == 'removeRelationship') {
         this.doSelectRelationship(entity, data, function(link) {
-          this.doRemoveRelationship(link, entity, data, function () {
+          if(link == null) {
             this.doEditEntity(entity, data, callback);
-          }.bind(this))
+          } else {
+            this.doRemoveRelationship(link, entity, data, function () {
+              this.doEditEntity(entity, data, callback);
+            }.bind(this))
+          }
         }.bind(this));
       }
       if(answers.action == '') {
@@ -235,6 +281,10 @@ var Task = (function() {
     }.bind(this));
   };
   Task.prototype.doSelectAttribute = function(entity, data, callback) {
+    if(entity == null) {
+      callback();
+      return;
+    }
     var attributesChoices = [];
     for (var attributeId in entity.attributes) {
       var attribute = entity.attributes[attributeId];
@@ -244,6 +294,11 @@ var Task = (function() {
         checked: false
       });
     }
+    attributesChoices.push(new inquirer.Separator());
+    attributesChoices.push({
+      name: 'Exit',
+      value: null
+    });
     var questions = [
       {
         type: 'list',
@@ -257,6 +312,10 @@ var Task = (function() {
     }.bind(this));
   };
   Task.prototype.doAddAttribute = function(entity, data, callback) {
+    if(entity == null) {
+      callback();
+      return;
+    }
     var questions = [
       {
         type: 'input',
@@ -267,20 +326,32 @@ var Task = (function() {
         type: 'input',
         name: 'type',
         message: 'Attribute type',
-        default: 'string'
+        default: 'string',
+        when: function(answers) {
+          return answers.name != '';
+        }
       }
     ];
     inquirer.prompt(questions, function( answers ) {
-      entity.attributes[answers.name] = {
-        id: answers.name,
-        name: answers.name,
-        type: answers.type
-      };
-      this.writeEntity(entity);
-      callback();
+      if(answers.name == '') {
+        callback(null);
+      } else {
+        var attribute = {
+          id: answers.name,
+          name: answers.name,
+          type: answers.type
+        };
+        entity.attributes[answers.name] = attribute;
+        this.writeEntity(entity);
+        callback(attribute);
+      }
     }.bind(this));
   };
   Task.prototype.doEditAttribute = function(attribute, entity, data, callback) {
+    if(entity == null) {
+      callback();
+      return;
+    }
     var oldAttributeId = attribute.id;
     var questions = [
       {
@@ -293,20 +364,31 @@ var Task = (function() {
         type: 'input',
         name: 'type',
         message: 'Attribute type',
-        default: attribute.type
+        default: attribute.type,
+        when: function(answers) {
+          return answers.name != '';
+        }
       }
     ];
     inquirer.prompt(questions, function( answers ) {
-      delete entity.attributes[oldAttributeId];
-      entity.attributes[answers.name] = attribute;
-      attribute.id = answers.name;
-      attribute.name = answers.name;
-      attribute.type = answers.type;
-      this.writeEntity(entity);
-      callback();
+      if(answers.name == '') {
+        callback(null);
+      } else {
+        delete entity.attributes[oldAttributeId];
+        entity.attributes[answers.name] = attribute;
+        attribute.id = answers.name;
+        attribute.name = answers.name;
+        attribute.type = answers.type;
+        this.writeEntity(entity);
+        callback();
+      }
     }.bind(this));
   };
   Task.prototype.doRemoveAttribute = function(attribute, entity, data, callback) {
+    if(attribute == null) {
+      callback();
+      return;
+    }
     var questions = [
       {
         type: 'confirm',
@@ -324,6 +406,10 @@ var Task = (function() {
     }.bind(this));
   };
   Task.prototype.doSelectRelationship = function(entity, data, callback) {
+    if(entity == null) {
+      callback();
+      return;
+    }
     var relationshipsChoices = [];
     for (var linkId in entity.links) {
       var link = entity.links[linkId];
@@ -333,6 +419,11 @@ var Task = (function() {
         checked: false
       });
     }
+    relationshipsChoices.push(new inquirer.Separator());
+    relationshipsChoices.push({
+      name: 'Exit',
+      value: null
+    });
     var questions = [
       {
         type: 'list',
@@ -346,11 +437,24 @@ var Task = (function() {
     }.bind(this));
   };
   Task.prototype.doAddRelationship = function(entity, data, callback) {
+    if(entity == null) {
+      callback();
+      return;
+    }
     var questions = [
+      {
+        type: 'list',
+        name: 'targetEntityId',
+        message: 'Target entity',
+        choices: this.getEntitiesChoices(this.genJS.entities)
+      },
       {
         type: 'input',
         name: 'name',
-        message: 'Relationship name'
+        message: 'Relationship name',
+        when: function(answers) {
+          return answers.targetEntityId != null;
+        }
       },
       {
         type: 'list',
@@ -374,34 +478,46 @@ var Task = (function() {
             value: 'many-to-many'
           }
         ],
-        default: 'many-to-one'
+        default: 'many-to-one',
+        when: function(answers) {
+          return answers.targetEntityId != null && answers.name != '';
+        }
       }
     ];
     inquirer.prompt(questions, function( answers ) {
-      entity.links[answers.name]={
-        id: answers.name,
-        name: answers.name,
-        type: answers.type
-      };
-      this.writeEntity(entity);
-      callback();
+      if(answers.name == '' || answers.targetEntityId == null) {
+        callback(null);
+      } else {
+        entity.links[answers.name] = {
+          id: answers.name,
+          name: answers.name,
+          type: answers.type,
+          target: answers.targetEntityId
+        };
+        this.writeEntity(entity);
+        callback();
+      }
     }.bind(this));
   };
   Task.prototype.doEditRelationship = function(link, entity, data, callback) {
+    if(link == null) {
+      callback();
+      return;
+    }
     var oldLinkId = link.id;
     var questions = [
-      {
-        type: 'input',
-        name: 'name',
-        message: 'Relationship name',
-        default: link.name
-      },
       {
         type: 'list',
         name: 'targetEntityId',
         message: 'Target entity',
         choices: this.getEntitiesChoices(this.genJS.entities),
         default: link.target
+      },
+      {
+        type: 'input',
+        name: 'name',
+        message: 'Relationship name',
+        default: link.name
       },
       {
         type: 'list',
@@ -429,14 +545,18 @@ var Task = (function() {
       }
     ];
     inquirer.prompt(questions, function( answers ) {
-      delete entity.links[oldLinkId];
-      entity.links[answers.name]=link;
-      link.id = answers.name;
-      link.name = answers.name;
-      link.type = answers.type;
-      link.target = answers.targetEntityId;
-      this.writeEntity(entity);
-      callback();
+      if(answers.name == '' || answers.targetEntityId == null) {
+        callback(null);
+      } else {
+        delete entity.links[oldLinkId];
+        entity.links[answers.name] = link;
+        link.id = answers.name;
+        link.name = answers.name;
+        link.type = answers.type;
+        link.target = answers.targetEntityId;
+        this.writeEntity(entity);
+        callback();
+      }
     }.bind(this));
   };
   Task.prototype.getEntitiesChoices = function(entities) {
@@ -448,9 +568,18 @@ var Task = (function() {
         value: entity.id
       });
     }
+    entitiesChoices.push(new inquirer.Separator());
+    entitiesChoices.push({
+      name: 'Exit',
+      value: null
+    });
     return entitiesChoices;
   };
   Task.prototype.doRemoveRelationship = function(link, entity, data, callback) {
+    if(link == null) {
+      callback();
+      return;
+    }
     var questions = [
       {
         type: 'confirm',
