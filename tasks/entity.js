@@ -1,5 +1,6 @@
 var
   inquirer = require("inquirer"),
+  chalk = require('chalk'),
   fs = require('fs'),
   path = require('path'),
   gfile = require('gfilesync'),
@@ -13,14 +14,103 @@ var Task = (function() {
   Task.prototype.do = function(data, callback) {
     this.doMain(data, callback);
   };
+  Task.prototype.getEntities = function() {
+    var entities = {};
+    for(var entityId in this.genJS.entities) {
+      var entity = this.genJS.entities[entityId];
+      if(this.hasTagDomain(entity)) {
+        entities[entityId] = entity;
+      }
+    }
+    return entities;
+  };
+  Task.prototype.hasTagDomain = function(entity) {
+    for(var tagId in entity.tags) {
+      if(tagId == 'domain') {
+        return true;
+      }
+    }
+    return false;
+  };
   Task.prototype.loadGenJS = function(data) {
     this.genJS = new GenJS(data.Genjsfile);
     this.genJS.load();
   };
+  Task.prototype.showModel = function() {
+    console.log('=> Model:');
+    var entities = this.getEntities();
+    for(var entityId in entities) {
+      var entity = entities[entityId];
+      this.showOneEntity(entity);
+    }
+    console.log('');
+  };
+  Task.prototype.showEntity = function(entity) {
+    this.showOneEntity(entity);
+    console.log('');
+  };
+  Task.prototype.showOneEntity = function(entity) {
+    console.log('');
+    console.log(chalk.red.bold(entity.id),':');
+    console.log('  fields:');
+    var hasAttribute = false;
+    for(var attributeId in entity.attributes) {
+      hasAttribute = true;
+      var attribute = entity.attributes[attributeId];
+      console.log(chalk.blue('    '+attribute.id),':',chalk.magenta(attribute.type));
+    }
+    if(!hasAttribute) {
+      console.log('    < no field >');
+    }
+    console.log('  relationships:');
+    var hasLink = false;
+    for(var linkId in entity.links) {
+      hasLink = true;
+      var link = entity.links[linkId];
+      console.log('    '+link.id,link.type,link.target);
+    }
+    if(!hasLink) {
+      console.log('     < no relationship >');
+    }
+  };
+  Task.prototype.cleanEntity = function(entity) {
+    var entityClean = {};
+    for(var eltId in entity) {
+      if(eltId != 'id' && eltId != 'fields' && eltId != 'attributes' && eltId != 'links') {
+        entityClean[eltId] = entity[eltId];
+      }
+    }
+    if(entity.attributes != null) {
+      for (var attributeId in entity.attributes) {
+        var attribute = entity.attributes[attributeId];
+        var attributeClean = {};
+        entityClean.attributes[attributeId] = attributeClean;
+        for(var eltId in entity) {
+          if(eltId != 'id') {
+            attributeClean[eltId] = attribute[eltId];
+          }
+        }
+      }
+    }
+    if(entity.links != null) {
+      for (var linkId in entity.links) {
+        var link = entity.links[linkId];
+        var linkClean = {};
+        entityClean.links[linkId] = linkClean;
+        for(var eltId in entity) {
+          if(eltId != 'id') {
+            linkClean[eltId] = link[eltId];
+          }
+        }
+      }
+    }
+    var entityClean;
+  };
   Task.prototype.writeEntity = function(entity) {
+    var entityToSave = this.cleanEntity(entity);
     var modelDir = this.genJS.modelDirs[0];
     mkdirp.sync(path.join(modelDir,'@domain'));
-    gfile.writeYaml(path.join(modelDir,'@domain',entity.id+'.yml'), entity);
+    gfile.writeYaml(path.join(modelDir,'@domain',entity.id+'.yml'), entityToSave);
   };
   Task.prototype.deleteEntity = function(entity) {
     var modelDir = this.genJS.modelDirs[0];
@@ -28,8 +118,10 @@ var Task = (function() {
   };
   Task.prototype.doMain = function(data, callback) {
     this.loadGenJS(data);
+    this.showModel();
     var choices = [];
-    if(this.genJS.entities != null && Object.keys(this.genJS.entities).length > 0) {
+    var entities = this.getEntities();
+    if(entities != null && Object.keys(entities).length > 0) {
       choices.push({
         name: 'Edit entity',
         value: 'modify'
@@ -39,7 +131,7 @@ var Task = (function() {
       name: 'New entity',
         value: 'new'
     });
-    if(this.genJS.entities != null && Object.keys(this.genJS.entities).length > 0) {
+    if(entities != null && Object.keys(entities).length > 0) {
       choices.push({
         name: 'Remove entity',
         value: 'remove'
@@ -122,8 +214,9 @@ var Task = (function() {
   };
   Task.prototype.doSelectEntity = function(data, callback) {
     var entitiesChoices = [];
-    for (var entityId in this.genJS.entities) {
-      var entity = this.genJS.entities[entityId];
+    var entities = this.getEntities();
+    for (var entityId in entities) {
+      var entity = entities[entityId];
       entitiesChoices.push({
         value: entity,
         name: entity.name,
@@ -173,7 +266,9 @@ var Task = (function() {
       return;
     }
     this.loadGenJS(data);
-    entity = this.genJS.entities[entity.id];
+    var entities = this.getEntities();
+    entity = entities[entity.id];
+    this.showEntity(entity);
     var choices = [];
     choices.push({
       name: 'Add attribute',
@@ -446,7 +541,7 @@ var Task = (function() {
         type: 'list',
         name: 'targetEntityId',
         message: 'Target entity',
-        choices: this.getEntitiesChoices(this.genJS.entities)
+        choices: this.getEntitiesChoices()
       },
       {
         type: 'input',
@@ -510,7 +605,7 @@ var Task = (function() {
         type: 'list',
         name: 'targetEntityId',
         message: 'Target entity',
-        choices: this.getEntitiesChoices(this.genJS.entities),
+        choices: this.getEntitiesChoices(),
         default: link.target
       },
       {
@@ -559,7 +654,8 @@ var Task = (function() {
       }
     }.bind(this));
   };
-  Task.prototype.getEntitiesChoices = function(entities) {
+  Task.prototype.getEntitiesChoices = function() {
+    var entities = this.getEntities();
     var entitiesChoices = [];
     for(var entityId in entities) {
       var entity = entities[entityId];
