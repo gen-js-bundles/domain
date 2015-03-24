@@ -67,7 +67,19 @@ var Task = (function() {
     for(var linkId in entity.links) {
       hasLink = true;
       var link = entity.links[linkId];
-      console.log('    '+link.id,link.type,link.target);
+      if(link.type == 'one-to-one') {
+        var linkType = '1 - 1';
+      }
+      if(link.type == 'one-to-many') {
+        var linkType = '1 - *';
+      }
+      if(link.type == 'many-to-one') {
+        var linkType = '* - 1';
+      }
+      if(link.type == 'many-to-many') {
+        var linkType = '* - *';
+      }
+      console.log(chalk.blue('    '+link.id),':',entity.id,':',linkType,':',chalk.magenta(link.target),'('+link.type+')');
     }
     if(!hasLink) {
       console.log('    < no relationship >');
@@ -109,12 +121,9 @@ var Task = (function() {
     return entityClean;
   };
   Task.prototype.writeEntity = function(entity) {
-
-    console.log('entity',entity);
     var entityToSave = this.cleanEntity(entity);
     var modelDir = this.genJS.modelDirs[0];
     mkdirp.sync(path.join(modelDir,'@domain'));
-    console.log('entityToSave',entityToSave);
     gfile.writeYaml(path.join(modelDir,'@domain',entity.id+'.yml'), entityToSave);
   };
   Task.prototype.deleteEntity = function(entity) {
