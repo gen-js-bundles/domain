@@ -561,6 +561,9 @@ var Task = (function() {
         type: 'input',
         name: 'name',
         message: 'Relationship name',
+        default: function(answers) {
+          return answers.targetEntityId
+        },
         when: function(answers) {
           return answers.targetEntityId != null;
         }
