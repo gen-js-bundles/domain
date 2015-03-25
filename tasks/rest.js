@@ -576,8 +576,8 @@ var Task = (function() {
     var methodChoices = [];
     var methods = {
       'GET': true,
-      'PUT': true,
       'POST': true,
+      'PUT': true,
       'DELETE': true,
       'PATCH': true,
       'OPTIONS': true
@@ -628,7 +628,25 @@ var Task = (function() {
         type: 'input',
         name: 'name',
         message: 'Method name',
-        default: method.name
+        default: function() {
+          if(method.name != null) {
+            return method.name;
+          }
+          var pathName = path.id;
+          while(pathName.indexOf('/') != -1) {
+            var pos = pathName.indexOf('/');
+            pathName = pathName.substring(0,pos) + pathName.charAt(pos+1).toUpperCase() + pathName.substring(pos+2);
+          }
+          if(pathName.lastIndexOf('s') == pathName.length-1) {
+            if(method.id == 'GET') {
+              return 'getAll'+pathName;
+            }
+          } else {
+            if(method.id == 'GET') {
+              return 'getOne'+pathName;
+            }
+          }
+        }
       },
       {
         type: 'input',
@@ -638,7 +656,19 @@ var Task = (function() {
           if(method.return != null) {
             return method.return;
           } else {
-            return 'void';
+            var pathName = path.id;
+            var pos = pathName.lastIndexOf('/');
+            pathName = pathName.charAt(pos+1).toUpperCase() + pathName.substring(pos+2);
+            if(path.id.lastIndexOf('s') == path.id.length-1) {
+              pathName = pathName.substring(0,pathName.length-1);
+              if(method.id == 'GET') {
+                return 'List<'+pathName+'>';
+              }
+            } else {
+              if(method.id == 'GET') {
+                return pathName;
+              }
+            }
           }
         }
       }
