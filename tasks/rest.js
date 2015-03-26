@@ -59,30 +59,50 @@ var Task = (function() {
     for(var pathId in entity.tags.rest.paths) {
       hasPath = true;
       var path = entity.tags.rest.paths[pathId];
-      console.log(chalk.blue('  '+pathId));
-      
-      for(var methodId in path.methods) {
-        var method = path.methods[methodId];
-        console.log(chalk.blue('    '+methodId));
-        if(method.name != null) {
-          console.log('      name', ':', chalk.magenta(method.name));
-        }
-        if(method.params != null) {
-          console.log('      params', ':');
-          for(var paramId in method.params) {
-            var param = method.params[paramId];
-            console.log(chalk.blue('        '+paramId),':',chalk.magenta(param.type));
-          }
-        }
-        if(method.return != null) {
-          console.log('      return', ':', chalk.magenta(method.return));
-        }
-      }
+      path.id = pathId;
+      this.showOnePath(path);
     }
     if(!hasPath) {
       console.log('  < no path >');
     }
+  };
+  Task.prototype.showPath = function(path, entity) {
+    console.log('');
+    console.log(chalk.red.bold(entity.id));
+    this.showOnePath(path);
+    console.log('');
+  };
+  Task.prototype.showOnePath = function(path) {
+    console.log(chalk.blue('  '+path.id));
 
+    for(var methodId in path.methods) {
+      var method = path.methods[methodId];
+      method.id = methodId;
+      this.showOneMethod(method);
+    }
+  };
+  Task.prototype.showMethod = function(method, path, entity) {
+    console.log('');
+    console.log(chalk.red.bold(entity.id));
+    console.log(chalk.blue('  '+path.id));
+    this.showOneMethod(method);
+    console.log('');
+  };
+  Task.prototype.showOneMethod = function(method) {
+    console.log(chalk.blue('    '+method.id));
+    if(method.name != null) {
+      console.log('      name', ':', chalk.magenta(method.name));
+    }
+    if(method.params != null) {
+      console.log('      params', ':');
+      for(var paramId in method.params) {
+        var param = method.params[paramId];
+        console.log(chalk.blue('        '+paramId),':',chalk.magenta(param.type));
+      }
+    }
+    if(method.return != null) {
+      console.log('      return', ':', chalk.magenta(method.return));
+    }
   };
   Task.prototype.cleanEntity = function(entity) {
     var entityClean = {};
@@ -281,6 +301,7 @@ var Task = (function() {
       callback();
     }.bind(this));
   };
+
   Task.prototype.doEditEntity = function(entity, data, callback) {
     if(entity == null) {
       callback();
@@ -354,6 +375,7 @@ var Task = (function() {
       }
     }.bind(this));
   };
+
   Task.prototype.doSelectPath = function(entity, data, callback) {
     if(entity == null) {
       callback();
@@ -386,6 +408,7 @@ var Task = (function() {
       callback(answers.path);
     }.bind(this));
   };
+
   Task.prototype.doAddPath = function(entity, data, callback) {
     if(entity == null) {
       callback();
@@ -439,6 +462,7 @@ var Task = (function() {
     }.bind(this));
   };
   */
+
   Task.prototype.doRemovePath = function(path, entity, data, callback) {
     if(path == null) {
       callback();
@@ -460,6 +484,7 @@ var Task = (function() {
       callback();
     }.bind(this));
   };
+
   Task.prototype.doEditPath = function(path, entity, data, callback) {
     if(path == null) {
       callback();
@@ -471,7 +496,7 @@ var Task = (function() {
     var pathId = path.id;
     path = entity.tags.rest.paths[path.id];
     path.id = pathId;
-    this.showEntity(entity);
+    this.showPath(path, entity);
     var choices = [];
     choices.push({
       name: 'Add method',
@@ -503,8 +528,14 @@ var Task = (function() {
     ];
     inquirer.prompt(questions, function( answers ) {
       if(answers.action == 'addMethod') {
-        this.doAddMethod(path, entity, data, function() {
-          this.doEditPath(path, entity, data, callback);
+        this.doAddMethod(path, entity, data, function(method) {
+          if(method == null) {
+            this.doEditPath(path, entity, data, callback);
+          } else {
+            this.doEditMethod(method, path, entity, data, function () {
+              this.doEditPath(path, entity, data, callback);
+            }.bind(this))
+          }
         }.bind(this));
       }
       if(answers.action == 'editMethod') {
@@ -568,6 +599,7 @@ var Task = (function() {
       callback(answers.method);
     }.bind(this));
   };
+
   Task.prototype.doAddMethod = function(path, entity, data, callback) {
     if(path == null) {
       callback();
@@ -613,16 +645,18 @@ var Task = (function() {
         }
         path.methods[answers.id] = method;
         this.writeEntity(entity);
+        var method = entity.tags.rest.paths[path.id].methods[method.id];
         callback(method);
       }
     }.bind(this));
   };
+
   Task.prototype.doEditMethod = function(method, path, entity, data, callback) {
     if(path == null) {
       callback();
       return;
     }
-    var oldMethodId = method.id;
+    this.showMethod(method, path, entity);
     var questions = [
       {
         type: 'input',
@@ -723,6 +757,7 @@ var Task = (function() {
       }
     }.bind(this));
   };
+
   Task.prototype.doRemoveMethod = function(method, path, entity, data, callback) {
     if(method == null) {
       callback();
@@ -744,6 +779,7 @@ var Task = (function() {
       callback();
     }.bind(this));
   };
+
   return Task;
 })();
 
