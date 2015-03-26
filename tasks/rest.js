@@ -94,7 +94,7 @@ var Task = (function() {
       console.log('      name', ':', chalk.magenta(method.name));
     }
     if(method.params != null) {
-      console.log('      params', ':');
+      console.log('      parameters', ':');
       for(var paramId in method.params) {
         var param = method.params[paramId];
         console.log(chalk.blue('        '+paramId),':',chalk.magenta(param.type));
@@ -155,6 +155,11 @@ var Task = (function() {
     this.showAPI();
     var choices = [];
     var entities = this.getEntities();
+    choices.push({
+      name: 'Exit',
+      value: ''
+    });
+    choices.push(new inquirer.Separator());
     if(entities != null && Object.keys(entities).length > 0) {
       choices.push({
         name: 'Edit entity',
@@ -171,11 +176,6 @@ var Task = (function() {
         value: 'remove'
       });
     }
-    choices.push(new inquirer.Separator());
-    choices.push({
-      name: 'Exit',
-        value: ''
-    });
     var questions = [
       {
         type: 'list',
@@ -255,6 +255,11 @@ var Task = (function() {
   };
   Task.prototype.doSelectEntity = function(data, callback) {
     var entitiesChoices = [];
+    entitiesChoices.push({
+      name: 'Exit',
+      value: null
+    });
+    entitiesChoices.push(new inquirer.Separator());
     var entities = this.getEntities();
     for (var entityId in entities) {
       var entity = entities[entityId];
@@ -264,11 +269,6 @@ var Task = (function() {
         checked: false
       });
     }
-    entitiesChoices.push(new inquirer.Separator());
-    entitiesChoices.push({
-      name: 'Exit',
-      value: null
-    });
     var questions = [
       {
         type: 'list',
@@ -313,6 +313,11 @@ var Task = (function() {
     this.showEntity(entity);
     var choices = [];
     choices.push({
+      name: 'Exit',
+      value: ''
+    });
+    choices.push(new inquirer.Separator());
+    choices.push({
       name: 'Add path',
       value: 'addPath'
     });
@@ -326,11 +331,6 @@ var Task = (function() {
         value: 'removePath'
       });
     }
-    choices.push(new inquirer.Separator());
-    choices.push({
-      name: 'Exit',
-      value: ''
-    });
 
     var questions = [
       {
@@ -382,6 +382,11 @@ var Task = (function() {
       return;
     }
     var pathsChoices = [];
+    pathsChoices.push({
+      name: 'Exit',
+      value: null
+    });
+    pathsChoices.push(new inquirer.Separator());
     for (var pathId in entity.tags.rest.paths) {
       var path = entity.tags.rest.paths[pathId];
       path.id = pathId;
@@ -391,11 +396,6 @@ var Task = (function() {
         checked: false
       });
     }
-    pathsChoices.push(new inquirer.Separator());
-    pathsChoices.push({
-      name: 'Exit',
-      value: null
-    });
     var questions = [
       {
         type: 'list',
@@ -499,6 +499,11 @@ var Task = (function() {
     this.showPath(path, entity);
     var choices = [];
     choices.push({
+      name: 'Exit',
+      value: ''
+    });
+    choices.push(new inquirer.Separator());
+    choices.push({
       name: 'Add method',
       value: 'addMethod'
     });
@@ -512,11 +517,6 @@ var Task = (function() {
         value: 'removeMethod'
       });
     }
-    choices.push(new inquirer.Separator());
-    choices.push({
-      name: 'Exit',
-      value: ''
-    });
 
     var questions = [
       {
@@ -573,6 +573,11 @@ var Task = (function() {
       return;
     }
     var methodsChoices = [];
+    methodsChoices.push({
+      name: 'Exit',
+      value: null
+    });
+    methodsChoices.push(new inquirer.Separator());
     for (var methodId in path.methods) {
       var method = path.methods[methodId];
       method.id = methodId;
@@ -582,11 +587,6 @@ var Task = (function() {
         checked: false
       });
     }
-    methodsChoices.push(new inquirer.Separator());
-    methodsChoices.push({
-      name: 'Exit',
-      value: null
-    });
     var questions = [
       {
         type: 'list',
@@ -714,30 +714,122 @@ var Task = (function() {
         method.name = answers.name;
 
         var paramInquirer = (function paramInquirer(method) {
+
+          var parameterChoices = [];
+          for(var paramId in method.params) {
+            var param = method.params[paramId];
+            param.id = paramId;
+            parameterChoices.push({
+              name: param.id + ' : ' + param.type,
+              value: param
+            })
+          }
+
+          var parameterActionChoices = [];
+          parameterActionChoices.push({
+            name: 'Exit',
+            value: null
+          });
+          parameterActionChoices.push(new inquirer.Separator());
+          parameterActionChoices.push(
+            {
+              name: 'Add parameter',
+              value: 'add'
+            }
+          );
+          if(parameterChoices.length > 0) {
+            parameterActionChoices.push({
+                name: 'Remove parameter',
+                value: 'remove'
+              });
+            parameterActionChoices.push(new inquirer.Separator());
+            for(var i=0; i<parameterChoices.length; i++) {
+              parameterActionChoices.push(parameterChoices[i]);
+            }
+          }
+
+          var parameterRemoveChoices = [];
+          parameterRemoveChoices.push({
+            name: 'Exit',
+            value: null
+          });
+          parameterRemoveChoices.push(new inquirer.Separator());
+          if(parameterChoices.length > 0) {
+            for(var i=0; i<parameterChoices.length; i++) {
+              parameterRemoveChoices.push(parameterChoices[i]);
+            }
+          }
           var questions = [
+            {
+              type: 'list',
+              name: 'paramAction',
+              message: 'Parameter action',
+              choices: parameterActionChoices
+            },
+            {
+              type: 'list',
+              name: 'paramToRemove',
+              message: 'Parameter to remove',
+              when: function(answers) {
+                return answers.paramAction == 'remove';
+              },
+              choices: parameterRemoveChoices
+            },
             {
               type: 'input',
               name: 'paramName',
-              message: 'Parameter name'
+              message: 'Parameter name',
+              when: function(answers) {
+                return answers.paramAction != null && answers.paramAction !== 'remove';
+              },
+              default: function(answers) {
+                if(answers.paramAction !== 'add') {
+                  return answers.paramAction.name;
+                };
+              }
             },
             {
               type: 'input',
               name: 'paramType',
               message: 'Parameter type',
               when: function(answers) {
-                return answers.paramName != '';
+                return answers.paramAction != null && answers.paramAction !== 'remove' && answers.paramName != '';
+              },
+              default: function(answers) {
+                if(answers.paramAction !== 'add') {
+                  return answers.paramAction.name;
+                };
               }
             }
           ];
           var deferred = Q.defer();
           inquirer.prompt(questions, function (answers) {
-            if (answers.paramName != '') {
-              if(method.params == null) {
-                method.params = {};
+            if(answers.paramAction != null && answers.paramName != '') {
+              if(answers.paramAction == 'remove') {
+                delete method.params[answers.paramToRemove.id];
               }
-              method.params[answers.paramName] = {
-                type: answers.paramType
-              };
+              else {
+                if(answers.paramAction == 'add') {
+                  if (method.params == null) {
+                    method.params = {};
+                  }
+                  var param = {
+                    id: answers.paramName
+                  };
+                  method.params[answers.paramName] = param;
+                }
+                else { // action : modify
+                  var paramName = answers.paramAction.id;
+                  console.log(paramName);
+                  var param = method.params[paramName];
+                  if(paramName != answers.paramName) {
+                    delete method.params[paramName];
+                    method.params[answers.paramName] = param;
+                    param.id = answers.paramName;
+                  }
+                }
+                param.type = answers.paramType;
+              }
               paramInquirer(method)
                 .then(function() {
                   deferred.resolve();
