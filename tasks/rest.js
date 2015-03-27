@@ -157,24 +157,28 @@ var Task = (function() {
     var entities = this.getEntities();
     choices.push({
       name: 'Exit',
-      value: ''
+      value: null
     });
     choices.push(new inquirer.Separator());
-    if(entities != null && Object.keys(entities).length > 0) {
-      choices.push({
-        name: 'Edit entity',
-        value: 'modify'
-      });
-    }
     choices.push({
-      name: 'New entity',
-        value: 'new'
+      name: 'Add entity',
+      value: 'add'
     });
     if(entities != null && Object.keys(entities).length > 0) {
       choices.push({
         name: 'Remove entity',
         value: 'remove'
       });
+      choices.push(new inquirer.Separator());
+      var entities = this.getEntities();
+      for (var entityId in entities) {
+        var entity = entities[entityId];
+        choices.push({
+          value: entity,
+          name: entity.name,
+          checked: false
+        });
+      }
     }
     var questions = [
       {
@@ -185,7 +189,7 @@ var Task = (function() {
       }
     ];
     inquirer.prompt(questions, function( answers ) {
-      if(answers.action == 'new') {
+      if(answers.action == 'add') {
         this.doAddEntity(data, function (entity) {
           if(entity == null) {
             this.doMain(data, callback);
@@ -196,18 +200,7 @@ var Task = (function() {
           }
         }.bind(this));
       }
-      if(answers.action == 'modify') {
-        this.doSelectEntity(data, function (entity) {
-          if(entity == null) {
-            this.doMain(data, callback);
-          } else {
-            this.doEditEntity(entity, data, function () {
-              this.doMain(data, callback);
-            }.bind(this))
-          }
-        }.bind(this));
-      }
-      if(answers.action == 'remove') {
+      else if(answers.action == 'remove') {
         this.doSelectEntity(data, function (entity) {
           if(entity == null) {
             this.doMain(data, callback);
@@ -216,6 +209,12 @@ var Task = (function() {
               this.doMain(data, callback);
             }.bind(this))
           }
+        }.bind(this));
+      }
+      else if(answers.action != null) {
+        var entity = answers.action;
+        this.doEditEntity(entity, data, function () {
+          this.doMain(data, callback);
         }.bind(this));
       }
       if(callback) {
@@ -323,13 +322,19 @@ var Task = (function() {
     });
     if(entity.tags.rest.paths != null && Object.keys(entity.tags.rest.paths).length > 0) {
       choices.push({
-        name: 'Edit path',
-        value: 'editPath'
-      });
-      choices.push({
         name: 'Remove path',
         value: 'removePath'
       });
+      choices.push(new inquirer.Separator());
+      for (var pathId in entity.tags.rest.paths) {
+        var path = entity.tags.rest.paths[pathId];
+        path.id = pathId;
+        choices.push({
+          value: path,
+          name: pathId,
+          checked: false
+        });
+      }
     }
 
     var questions = [
@@ -343,21 +348,16 @@ var Task = (function() {
     inquirer.prompt(questions, function( answers ) {
       if(answers.action == 'addPath') {
         this.doAddPath(entity, data, function() {
-          this.doEditEntity(entity, data, callback);
-        }.bind(this));
-      }
-      if(answers.action == 'editPath') {
-        this.doSelectPath(entity, data, function(path) {
           if(path == null) {
             this.doEditEntity(entity, data, callback);
           } else {
             this.doEditPath(path, entity, data, function () {
               this.doEditEntity(entity, data, callback);
-            }.bind(this))
+            }.bind(this));
           }
         }.bind(this));
       }
-      if(answers.action == 'removePath') {
+      else if(answers.action == 'removePath') {
         this.doSelectPath(entity, data, function(path) {
           if(path == null) {
             this.doEditEntity(entity, data, callback);
@@ -366,6 +366,12 @@ var Task = (function() {
               this.doEditEntity(entity, data, callback);
             }.bind(this))
           }
+        }.bind(this));
+      }
+      else if(answers.action != '') {
+        var path = answers.action;
+        this.doEditPath(path, entity, data, function () {
+          this.doEditEntity(entity, data, callback);
         }.bind(this));
       }
       if(answers.action == '') {
@@ -434,34 +440,6 @@ var Task = (function() {
       }
     }.bind(this));
   };
-  /*
-  Task.prototype.doEditPath = function(path, entity, data, callback) {
-    if(entity == null) {
-      callback();
-      return;
-    }
-    var oldPathId = path.id;
-    var questions = [
-      {
-        type: 'input',
-        name: 'id',
-        message: 'Path',
-        default: path.id
-      }
-    ];
-    inquirer.prompt(questions, function( answers ) {
-      if(answers.name == '') {
-        callback(null);
-      } else {
-        delete entity.tags.rest.paths[oldPathId];
-        entity.tags.rest.paths[answers.id] = path;
-        path.id = answers.id;
-        this.writeEntity(entity);
-        callback();
-      }
-    }.bind(this));
-  };
-  */
 
   Task.prototype.doRemovePath = function(path, entity, data, callback) {
     if(path == null) {
@@ -509,13 +487,19 @@ var Task = (function() {
     });
     if(path.methods != null && Object.keys(path.methods).length > 0) {
       choices.push({
-        name: 'Edit method',
-        value: 'editMethod'
-      });
-      choices.push({
         name: 'Remove method',
         value: 'removeMethod'
       });
+      choices.push(new inquirer.Separator());
+      for (var methodId in path.methods) {
+        var method = path.methods[methodId];
+        method.id = methodId;
+        choices.push({
+          value: method,
+          name: methodId,
+          checked: false
+        });
+      }
     }
 
     var questions = [
@@ -538,18 +522,7 @@ var Task = (function() {
           }
         }.bind(this));
       }
-      if(answers.action == 'editMethod') {
-        this.doSelectMethod(path, entity, data, function(method) {
-          if(method == null) {
-            this.doEditPath(path, entity, data, callback);
-          } else {
-            this.doEditMethod(method, path, entity, data, function () {
-              this.doEditPath(path, entity, data, callback);
-            }.bind(this))
-          }
-        }.bind(this));
-      }
-      if(answers.action == 'removeMethod') {
+      else if(answers.action == 'removeMethod') {
         this.doSelectMethod(path, entity, data, function(method) {
           if(method == null) {
             this.doEditPath(path, entity, data, callback);
@@ -558,6 +531,12 @@ var Task = (function() {
               this.doEditPath(path, entity, data, callback);
             }.bind(this))
           }
+        }.bind(this));
+      }
+      else if(answers.action != '') {
+        var method = answers.action;
+        this.doEditMethod(method, path, entity, data, function () {
+          this.doEditPath(path, entity, data, callback);
         }.bind(this));
       }
       if(answers.action == '') {
