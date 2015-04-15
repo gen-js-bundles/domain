@@ -123,12 +123,12 @@ var Task = (function() {
   Task.prototype.writeEntity = function(entity) {
     var entityToSave = this.cleanEntity(entity);
     var modelDir = this.genJS.modelDirs[0];
-    mkdirp.sync(path.join(modelDir,'@domain'));
-    gfile.writeYaml(path.join(modelDir,'@domain',entity.id+'.yml'), entityToSave);
+    mkdirp.sync(path.join(modelDir));
+    gfile.writeYaml(path.join(modelDir,entity.id+'.yml'), entityToSave);
   };
   Task.prototype.deleteEntity = function(entity) {
     var modelDir = this.genJS.modelDirs[0];
-    fs.unlinkSync(path.join(modelDir,'@domain',entity.id+'.yml'));
+    fs.unlinkSync(path.join(modelDir,entity.id+'.yml'));
   };
   Task.prototype.doMain = function(data, callback) {
     this.loadGenJS(data);
